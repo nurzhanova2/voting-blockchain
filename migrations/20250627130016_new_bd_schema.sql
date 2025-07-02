@@ -43,6 +43,12 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     revoked BOOLEAN NOT NULL DEFAULT FALSE
 );
 
+CREATE TABLE IF NOT EXISTS choices (
+    id SERIAL PRIMARY KEY,
+    election_id INTEGER NOT NULL REFERENCES elections(id) ON DELETE CASCADE,
+    text TEXT NOT NULL
+);
+
 -- +goose Down
 -- Удаляет все таблицы
 
@@ -51,4 +57,4 @@ DROP TABLE IF EXISTS votes;
 DROP TABLE IF EXISTS elections;
 DROP TABLE IF EXISTS refresh_tokens;
 DROP TABLE IF EXISTS users;
-
+DROP TABLE IF EXISTS choices;

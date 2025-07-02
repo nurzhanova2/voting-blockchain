@@ -46,11 +46,14 @@ func main() {
     voteRepo := votingRepos.NewVotePostgres(db.DB)
     blockchainRepo := votingRepos.NewBlockchainPostgres(db.DB)
     electionRepo := votingRepos.NewElectionPostgres(db.DB)
-    electionService := votingServices.NewElectionService(electionRepo)
+    choiceRepo := votingRepos.NewChoicePostgres(db.DB) // добавлено
+
+    electionService := votingServices.NewElectionService(electionRepo, choiceRepo) // изменено
     electionHandler := votingHandlers.NewElectionHandler(electionService)
 
     voteService := votingServices.NewVoteService(voteRepo, blockchainRepo)
     voteHandler := votingHandlers.NewVoteHandler(voteService)
+
 
     // ===== ROUTING =====
     r := chi.NewRouter()

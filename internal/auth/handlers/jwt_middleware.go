@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -65,14 +66,20 @@ func NewJWTMiddleware(secret []byte) func(http.Handler) http.Handler {
 				return
 			}
 
-			role, ok := claims["role"].(string)
+			rawRole, ok := claims["role"]
 			if !ok {
-				http.Error(w, "Invalid role", http.StatusUnauthorized)
+				http.Error(w, "Role claim not found", http.StatusUnauthorized)
+				return
+			}
+
+			roleStr := strings.TrimSpace(fmt.Sprintf("%v", rawRole))
+			if roleStr == "" {
+				http.Error(w, "Empty role", http.StatusUnauthorized)
 				return
 			}
 
 			ctx := context.WithValue(r.Context(), userIDKey, int(userIDFloat))
-			ctx = context.WithValue(ctx, userRoleKey, role)
+			ctx = context.WithValue(ctx, userRoleKey, roleStr)
 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
@@ -96,5 +103,5 @@ func GetUserRole(r *http.Request) (string, error) {
 	if !ok {
 		return "", errors.New("user_role not found")
 	}
-	return roleStr, nil
+	return strings.TrimSpace(roleStr), nil
 }
