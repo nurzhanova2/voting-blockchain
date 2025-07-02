@@ -69,3 +69,21 @@ func (h *VoteHandler) GetElectionBlockchainHandler(w http.ResponseWriter, r *htt
         http.Error(w, "failed to encode response", http.StatusInternalServerError)
     }
 }
+
+func (h *VoteHandler) GetResults(w http.ResponseWriter, r *http.Request) {
+    idStr := chi.URLParam(r, "id")
+    id, err := strconv.Atoi(idStr)
+    if err != nil {
+        http.Error(w, "invalid election ID", http.StatusBadRequest)
+        return
+    }
+
+    results, err := h.voteService.GetResults(r.Context(), id)
+    if err != nil {
+        http.Error(w, "failed to get results: "+err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(results)
+}

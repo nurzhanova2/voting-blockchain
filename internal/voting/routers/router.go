@@ -21,6 +21,7 @@ func NewVotingRouter(voteHandler *handlers.VoteHandler, electionHandler *handler
 		r.Post("/", electionHandler.Create)
 		r.Get("/", electionHandler.List)
 		r.Get("/{id}", electionHandler.Get)
+		r.Get("/{id}/results", voteHandler.GetResults)
 		r.Put("/{id}", electionHandler.Update)
 		r.Delete("/{id}", electionHandler.Delete)
 	})

@@ -36,7 +36,7 @@ A secure blockchain-based voting platform built with Go and PostgreSQL.
 | POST   | `/voting/elections/{id}/vote`     | User          |
 | GET    | `/voting/elections/{id}/blocks`   | User/Admin    |
 | GET    | `/voting/elections/{id}/choices`  | User/Admin    |
-
+| GET    | `/voting/elections/{id}/results`  | User/Admin    |
 ## Setup
 
 ```bash
