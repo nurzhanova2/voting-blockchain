@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -14,16 +13,11 @@ import (
 var DB *pgxpool.Pool
 
 func InitDB(cfg *config.Config) {
-	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s",
-		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName,
-	)
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var err error
-	DB, err = pgxpool.New(ctx, dsn)
+	DB, err = pgxpool.New(ctx, cfg.DBURL)
 	if err != nil {
 		log.Fatalf("Ошибка подключения к БД: %v", err)
 	}
