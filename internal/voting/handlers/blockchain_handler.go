@@ -42,7 +42,9 @@ func (h *BlockchainHandler) Vote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(block)
+	if err := json.NewEncoder(w).Encode(block); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 // GET /elections/{id}/blocks
@@ -60,5 +62,7 @@ func (h *BlockchainHandler) GetChain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(chain)
+	if err := json.NewEncoder(w).Encode(chain); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
