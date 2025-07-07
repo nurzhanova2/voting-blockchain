@@ -24,22 +24,13 @@ func (m *mockUserRepo) FindByEmail(ctx context.Context, email string) (*models.U
 }
 
 func (m *mockUserRepo) FindByID(ctx context.Context, id int) (*models.User, error) {
-    for _, u := range m.users {
-        if u.ID == id {
-            return u, nil
-        }
-    }
-    return nil, errors.New("user not found")
-}
-
-func mustHashPassword(pwd string) string {
-	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
-	if err != nil {
-		panic("не удалось захешировать пароль в тесте")
+	for _, u := range m.users {
+		if u.ID == id {
+			return u, nil
+		}
 	}
-	return string(hash)
+	return nil, errors.New("user not found")
 }
-
 
 func (m *mockUserRepo) Create(ctx context.Context, u *models.User) error {
 	m.users[u.Email] = u
@@ -55,17 +46,27 @@ func (m *mockRefreshRepo) Save(ctx context.Context, t *models.RefreshToken) erro
 	m.tokens[t.Token] = t
 	return nil
 }
+
 func (m *mockRefreshRepo) FindByToken(ctx context.Context, token string) (*models.RefreshToken, error) {
 	if t, ok := m.tokens[token]; ok {
 		return t, nil
 	}
 	return nil, nil
 }
+
 func (m *mockRefreshRepo) Revoke(ctx context.Context, token string) error {
 	if t, ok := m.tokens[token]; ok {
 		t.Revoked = true
 	}
 	return nil
+}
+
+func mustHashPassword(pwd string) string {
+	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), bcrypt.DefaultCost)
+	if err != nil {
+		panic("не удалось захешировать пароль в тесте")
+	}
+	return string(hash)
 }
 
 func TestRegister(t *testing.T) {
@@ -87,7 +88,6 @@ func TestLogin_Success(t *testing.T) {
 	userRepo := &mockUserRepo{users: map[string]*models.User{}}
 	refreshRepo := &mockRefreshRepo{tokens: map[string]*models.RefreshToken{}}
 
-	// Регистрация пользователя вручную
 	hashed, _ := bcrypt.GenerateFromPassword([]byte("pass1234"), bcrypt.DefaultCost)
 	userRepo.users["me@example.com"] = &models.User{
 		ID:           1,
@@ -127,7 +127,9 @@ func TestLogin_WrongPassword(t *testing.T) {
 }
 
 func TestRefresh_Success(t *testing.T) {
-	userRepo := &mockUserRepo{}
+	userRepo := &mockUserRepo{users: map[string]*models.User{
+		"u1@example.com": {ID: 1, Email: "u1@example.com"},
+	}}
 	refreshRepo := &mockRefreshRepo{tokens: map[string]*models.RefreshToken{}}
 
 	token := "valid-refresh-token"
@@ -150,7 +152,9 @@ func TestRefresh_Success(t *testing.T) {
 }
 
 func TestRefresh_RevokedToken(t *testing.T) {
-	userRepo := &mockUserRepo{}
+	userRepo := &mockUserRepo{users: map[string]*models.User{
+		"u1@example.com": {ID: 1, Email: "u1@example.com"},
+	}}
 	refreshRepo := &mockRefreshRepo{tokens: map[string]*models.RefreshToken{}}
 
 	token := "revoked-token"
@@ -170,14 +174,16 @@ func TestRefresh_RevokedToken(t *testing.T) {
 }
 
 func TestRefresh_ExpiredToken(t *testing.T) {
-	userRepo := &mockUserRepo{}
+	userRepo := &mockUserRepo{users: map[string]*models.User{
+		"u1@example.com": {ID: 1, Email: "u1@example.com"},
+	}}
 	refreshRepo := &mockRefreshRepo{tokens: map[string]*models.RefreshToken{}}
 
 	token := "expired-token"
 	refreshRepo.tokens[token] = &models.RefreshToken{
 		Token:     token,
 		UserID:    1,
-		ExpiresAt: time.Now().Add(-1 * time.Hour), // истёк
+		ExpiresAt: time.Now().Add(-1 * time.Hour),
 		Revoked:   false,
 	}
 
@@ -190,83 +196,82 @@ func TestRefresh_ExpiredToken(t *testing.T) {
 }
 
 func TestGetUserByID_Success(t *testing.T) {
-    userRepo := &mockUserRepo{
-        users: map[string]*models.User{
-            "user@example.com": {ID: 1, Email: "user@example.com"},
-        },
-    }
-    refreshRepo := &mockRefreshRepo{}
-    svc := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
+	userRepo := &mockUserRepo{
+		users: map[string]*models.User{
+			"user@example.com": {ID: 1, Email: "user@example.com"},
+		},
+	}
+	refreshRepo := &mockRefreshRepo{tokens: map[string]*models.RefreshToken{}}
+	svc := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
 
-    user, err := svc.GetUserByID(context.Background(), 1)
-    if err != nil {
-        t.Fatalf("unexpected error: %v", err)
-    }
-    if user.Email != "user@example.com" {
-        t.Errorf("expected email 'user@example.com', got '%s'", user.Email)
-    }
+	user, err := svc.GetUserByID(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if user.Email != "user@example.com" {
+		t.Errorf("expected email 'user@example.com', got '%s'", user.Email)
+	}
 }
-func TestGetUserByID_NotFound(t *testing.T) {
-    userRepo := &mockUserRepo{
-        users: map[string]*models.User{},
-    }
-    refreshRepo := &mockRefreshRepo{}
-    svc := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
 
-    _, err := svc.GetUserByID(context.Background(), 42)
-    if err == nil {
-        t.Fatal("expected error for non-existent user")
-    }
+func TestGetUserByID_NotFound(t *testing.T) {
+	userRepo := &mockUserRepo{users: map[string]*models.User{}}
+	refreshRepo := &mockRefreshRepo{tokens: map[string]*models.RefreshToken{}}
+	svc := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
+
+	_, err := svc.GetUserByID(context.Background(), 42)
+	if err == nil {
+		t.Fatal("expected error for non-existent user")
+	}
 }
 
 func TestLogin_Success_Variant(t *testing.T) {
-    mockUsers := map[string]*models.User{
-        "user@example.com": {
-            ID:           1,
-            Email:        "user@example.com",
-            PasswordHash: mustHashPassword("securepassword"),
-            CreatedAt:    time.Now(),
-        },
-    }
+	mockUsers := map[string]*models.User{
+		"user@example.com": {
+			ID:           1,
+			Email:        "user@example.com",
+			PasswordHash: mustHashPassword("securepassword"),
+			CreatedAt:    time.Now(),
+		},
+	}
 
-    userRepo := &mockUserRepo{users: mockUsers}
-    refreshRepo := &mockRefreshRepo{tokens: make(map[string]*models.RefreshToken)}
-    service := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
+	userRepo := &mockUserRepo{users: mockUsers}
+	refreshRepo := &mockRefreshRepo{tokens: make(map[string]*models.RefreshToken)}
+	service := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
 
-    resp, err := service.Login(context.Background(), "user@example.com", "securepassword")
-    if err != nil {
-        t.Fatalf("ожидался успешный логин, но ошибка: %v", err)
-    }
+	resp, err := service.Login(context.Background(), "user@example.com", "securepassword")
+	if err != nil {
+		t.Fatalf("ожидался успешный логин, но ошибка: %v", err)
+	}
 
-    if resp.AccessToken == "" || resp.RefreshToken == "" {
-        t.Fatal("токены не сгенерированы")
-    }
+	if resp.AccessToken == "" || resp.RefreshToken == "" {
+		t.Fatal("токены не сгенерированы")
+	}
 }
 
 func TestLogin_InvalidPassword(t *testing.T) {
-    mockUsers := map[string]*models.User{
-        "user@example.com": {
-            ID:           1,
-            Email:        "user@example.com",
-            PasswordHash: mustHashPassword("securepassword"),
-        },
-    }
-
-    userRepo := &mockUserRepo{users: mockUsers}
-    refreshRepo := &mockRefreshRepo{tokens: make(map[string]*models.RefreshToken)}
-    service := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
-
-    _, err := service.Login(context.Background(), "user@example.com", "wrongpassword")
-    if err == nil {
-        t.Fatal("ожидалась ошибка при неправильном пароле")
-    }
-}
-func TestRefresh_TokenNotFound(t *testing.T) {
-	refreshRepo := &mockRefreshRepo{
-		tokens: map[string]*models.RefreshToken{},
+	mockUsers := map[string]*models.User{
+		"user@example.com": {
+			ID:           1,
+			Email:        "user@example.com",
+			PasswordHash: mustHashPassword("securepassword"),
+		},
 	}
-	userRepo := &mockUserRepo{}
 
+	userRepo := &mockUserRepo{users: mockUsers}
+	refreshRepo := &mockRefreshRepo{tokens: make(map[string]*models.RefreshToken)}
+	service := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
+
+	_, err := service.Login(context.Background(), "user@example.com", "wrongpassword")
+	if err == nil {
+		t.Fatal("ожидалась ошибка при неправильном пароле")
+	}
+}
+
+func TestRefresh_TokenNotFound(t *testing.T) {
+	userRepo := &mockUserRepo{users: map[string]*models.User{
+		"u1@example.com": {ID: 1, Email: "u1@example.com"},
+	}}
+	refreshRepo := &mockRefreshRepo{tokens: map[string]*models.RefreshToken{}}
 	service := services.NewAuthService(userRepo, refreshRepo, "secret", 15*time.Minute, 7*24*time.Hour)
 
 	_, err := service.Refresh(context.Background(), "nonexistent")
@@ -274,5 +279,3 @@ func TestRefresh_TokenNotFound(t *testing.T) {
 		t.Fatal("ожидалась ошибка при несуществующем токене")
 	}
 }
-
-
