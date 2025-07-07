@@ -64,7 +64,9 @@ func (h *ElectionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(e)
+	if err := json.NewEncoder(w).Encode(e); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *ElectionHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +84,9 @@ func (h *ElectionHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(e)
+	if err := json.NewEncoder(w).Encode(e); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *ElectionHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +97,9 @@ func (h *ElectionHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(list)
+	if err := json.NewEncoder(w).Encode(list); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *ElectionHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +139,9 @@ func (h *ElectionHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(e)
+	if err := json.NewEncoder(w).Encode(e); err != nil {
+		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+	}
 }
 
 func (h *ElectionHandler) Delete(w http.ResponseWriter, r *http.Request) {
